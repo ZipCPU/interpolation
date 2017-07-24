@@ -219,7 +219,7 @@ int	main(int argc, char **argv) {
 			vals[1] = (int)(vals[1] <<(32- OBITS));
 			vals[2] = (int)(vals[2] <<(32- IBITS));
 			vals[3] = (int)(vals[3] <<(32- IBITS));
-			vals[4] = (int)(vals[4] <<(32-(IBITS+1)));
+			vals[4] = (int)(vals[4] <<(32- (IBITS+1)));
 			// The offset value, though, is unsigned
 			vals[5] = vals[5] & ((1<<MPREC)-1);
 			// and then dropping them back down to the range they
@@ -228,7 +228,7 @@ int	main(int argc, char **argv) {
 			vals[1] >>= (32-IBITS);
 			vals[2] >>= (32-IBITS);
 			vals[3] >>= (32-IBITS);
-			vals[4] >>= (32-IBITS);
+			vals[4] >>= (32-(IBITS+1));
 			// vals[5] is already good
 
 			// Write these to the debugging file

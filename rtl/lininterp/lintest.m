@@ -26,7 +26,7 @@ ylabel('Units');
 title('Interpolator Output');
 
 figure(2);
-redo = o_last + ((o_next-o_last).*o_offset)/mxv;
+redo = o_last + ((o_next-o_last).*o_offset)/mxv/2;
 redo = redo / mxv;
 plot(
 	t,i_data/mxv,'b;Input Signal;',

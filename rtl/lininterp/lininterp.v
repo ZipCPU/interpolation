@@ -81,7 +81,7 @@ module	lininterp(i_clk, i_ce, i_step, i_data, o_ce, o_data
 `endif
 		);
 	parameter	INW   = 28,	// Input width
-			OUTW  = 28,	// Output width
+			OWID  = 28,	// Output width
 			MPREC = 28,	// Multiply precision
 			CTRBITS = 32;	// Bits in our counter
 	// This core only supports upsampling
@@ -92,7 +92,7 @@ module	lininterp(i_clk, i_ce, i_step, i_data, o_ce, o_data
 	input	wire	[(INW-1):0]	i_data;
 	input	wire	[(CTRBITS-1):0]	i_step;
 	output	wire			o_ce;
-	output	wire	[(OUTW-1):0]	o_data;
+	output	wire	[(OWID-1):0]	o_data;
 `ifdef	TESTPOINTS
 	output	reg	[(INW-1):0]	o_last, o_next;
 	output	reg	[(INW):0]	o_slope;
@@ -114,7 +114,7 @@ module	lininterp(i_clk, i_ce, i_step, i_data, o_ce, o_data
 	reg	signed	[(INW-1):0]	r_next, r_last;
 	reg	signed	[(INW):0]	r_slope;
 	reg		[(CTRBITS-1):0]	r_counter;
-	reg	signed	[(MPREC-1):0]	r_offset;
+	reg	signed	[(MPREC):0]	r_offset;
 
 	// Start with ovfl true, so that we wait for the first valid input
 	initial	r_ovfl  = 1'b1;
@@ -148,21 +148,21 @@ module	lininterp(i_clk, i_ce, i_step, i_data, o_ce, o_data
 	//
 	// Do a bit select of our counter to get the offset which will be
 	// multiplied by our slope
-	wire	signed [(MPREC-1):0]	pre_offset;
-	assign	pre_offset = { 1'b0, r_counter[(CTRBITS-1):(CTRBITS-MPREC+1)] };
+	wire	signed [(MPREC):0]	pre_offset;
+	assign	pre_offset = { 1'b0, r_counter[(CTRBITS-1):(CTRBITS-MPREC)] };
 	always @(posedge i_clk)
 		if (r_ce)
 			r_offset <= pre_offset;
 
 	// Variable declarations for the x_ stage
-	// 
+	//
 	// The X stage where we multiply the incoming data.  It follows on
 	// the clock following the r_ stage, and so the inputs to this stage
 	// are the r_ variables from above.
 	//
 	reg				x_ce;
 	reg	[(INW-1):0]		x_base;
-	reg	signed [(MPREC+INW):0]	x_offset;
+	reg	signed [(MPREC+INW+1):0] x_offset;
 	always @(posedge i_clk)
 	if (r_ce)
 	begin
@@ -175,16 +175,24 @@ module	lininterp(i_clk, i_ce, i_step, i_data, o_ce, o_data
 
 
 	//
-	// The final_ stage, where we add things back together.  Specifically,
-	// we'll add the result of our multiply to the last data value, to
-	// get the final output value.
+	// The pre_rounding stage, where we add things back together.
+	// Specifically, we'll add the result of our multiply to the last data
+	// value, to get the pre_rounding value.
 	//
-	reg	[(MPREC+INW):0]		final_value;
+	reg	[(MPREC+INW-1):0]		pre_rounding;
 	always @(posedge i_clk)
 		if (x_ce)
-			final_value <= { {(2){x_base[(INW-1)]}},
-				x_base, {(MPREC-2){1'b0}} }
-			 		+ x_offset[(MPREC+INW):1];
+			pre_rounding <= { x_base, {(MPREC){1'b0}} }
+					+ x_offset[(MPREC+INW-1):0];
+
+	localparam	FWID = MPREC+INW;
+	reg	[(FWID-1):0]	rounded_result;
+	always @(posedge i_clk)
+		if (x_ce)
+			rounded_result <= pre_rounding
+				+ { {(OWID){1'b0}},
+					pre_rounding[(FWID-OWID)],
+				{(FWID-OWID-1){!pre_rounding[(FWID-OWID)]}} };
 
 	//
 	// Here's where we output the results
@@ -192,7 +200,7 @@ module	lininterp(i_clk, i_ce, i_step, i_data, o_ce, o_data
 	//
 	assign	o_ce = x_ce;
 	//
-	// The big trick here, though, is that we need to grab only OUTW
+	// The big trick here, though, is that we need to grab only OWID
 	// bits from a value that is MPREC+INW+1 bits wide.  Which bits
 	// shall we select?
 	//
@@ -200,7 +208,7 @@ module	lininterp(i_clk, i_ce, i_step, i_data, o_ce, o_data
 	// below "truncates" our result.  "Rounding" would be better,
 	// and specifically "convergent rounding."  We'll leave that for a
 	// later discussion.
-	assign	o_data = final_value[(MPREC+INW-3):(MPREC+INW-OUTW-2)];
+	assign	o_data = rounded_result[(FWID-1):(FWID-OWID)];
 
 `ifdef	TESTPOINTS
 	// These test points are not normally part of the linear interpolator,
@@ -226,25 +234,39 @@ module	lininterp(i_clk, i_ce, i_step, i_data, o_ce, o_data
 			x_slope  <= r_slope;
 			// Avoid name collision, with two x_offsets having
 			// different meanings.
-			x_sclock <= r_offset;
+			x_sclock <= r_offset[(MPREC-1):0];
+		end
+
+	// One more clock for the pre-rounding step
+	//
+	reg	[(INW-1):0]	pr_last, pr_next;
+	reg	[(INW):0]	pr_slope;
+	reg	[(MPREC-1):0]	pr_offset;
+
+	always @(posedge i_clk)
+		if (x_ce)
+		begin
+			pr_last   <= x_last;
+			pr_next   <= x_next;
+			pr_slope  <= x_slope;
+			pr_offset <= x_sclock;
 		end
 
 	always @(posedge i_clk)
 		if (x_ce)
 		begin
-			o_last   <= x_last;
-			o_next   <= x_next;
-			o_slope  <= x_slope;
-			o_offset <= x_sclock;
+			o_last   <= pr_last;
+			o_next   <= pr_next;
+			o_slope  <= pr_slope;
+			o_offset <= pr_offset;
 		end
 `endif
 
 
 	// Make verilator -Wall happy
 	// verilator lint_off UNUSED
-	wire	[(1+(MPREC+INW+1-OUTW)-1):0]	unused;
-	assign	unused = { x_offset[0],
-			final_value[(MPREC+INW):(MPREC+INW-2)],
-			final_value[(MPREC+INW-OUTW-3):0] };
+	wire	[((2+FWID-OWID)-1):0]	unused;
+	assign	unused = { x_offset[(MPREC+INW+1):(MPREC+INW)],
+			rounded_result[(FWID-OWID-1):0] };
 	// verilator lint_on  UNUSED
 endmodule
