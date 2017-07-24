@@ -47,8 +47,11 @@ SUBMAKE   := $(MAKE) --no-print-directory -C
 VFILES    := $(VROOT)/include/verilated.cpp $(VROOT)/include/verilated_vcd_c.cpp
 CFLAGS    := -g -I$(VROOT)/include -I$(VDIR)
 
-$(VDIR)/Vlininterp.h $(VDIR)/Vlininterp.cpp $(VDIR)/Vlininterp.mk: lininterp.v
+$(VDIR)/Vlininterp.h: lininterp.v
 	$(VERILATOR) $(VFLAGS) lininterp.v
+
+$(VDIR)/Vlininterp.cpp: $(VDIR)/Vlininterp.h
+$(VDIR)/Vlininterp.mk: $(VDIR)/Vlininterp.cpp
 
 .PHONY: library
 library: $(VDIR)/Vlininterp.h $(VDIR)/Vlininterp.cpp $(VDIR)/Vlininterp.mk
