@@ -13,7 +13,7 @@ and the [linear interpolator
 here](http://zipcpu.com/dsp/2017/07/29/series-linear-interpolation.html).
 
 If time permits, I look forward to adding an improved quadratic interpolator
-functionality to the current [quadratic interpolator](rtl/quadinterp).  This
+functionality to the current [quadratic interpolator](rtl/quadratic).  This
 current interpolator is a straightforward quadratic-fit based interpolator.  As
 such it's performance is, well, ... horrible.
 It is useful, however, to get a feel for why this doesn't work.  For that
@@ -21,7 +21,7 @@ reason I've placed it here.  When you see the better alternative that I'll
 add to the repository later, you'll understand what I mean.
 
 Once I finish with the demonstrating the improved [quadratic
-interpolator](rtl/quadinterp), and if time then permits, I may yet present
+interpolator](rtl/quadratic), and if time then permits, I may yet present
 some some other higher order interpolation solutions to this repository.
 Splines anyone?
 
