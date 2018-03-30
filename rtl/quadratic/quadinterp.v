@@ -8,11 +8,17 @@
 //		upsamplers: 1) A quadratic fit, 2) a better quadratic filter,
 //	3) an actual quadratic interpolator.
 //
+//
+//	Quadratic fit--OPT_IMPROVED_FIT=1'b0, OPT_INTERPOLATOR=1'b0
+//
 //	The quadratic fit just fits a quadratic to every set of three points,
 //	and then uses this quadratic interpolate from halfway between the
 //	first two points to halfway between the last two.  This may be the
 //	standard means of using quadratic interpolation, but the result it
 //	produces is quite discontinuous.
+//
+//
+//	Better filter--OPT_IMPROVED_FIT=1'b1, OPT_INTERPOLATOR=1'b0
 //
 //	The better filter, OPT_IMPROVED_FIT=1'b1, is actually the result of
 //	convolving a rectangle with itself three times.  The filter is
@@ -23,6 +29,8 @@
 //
 //	This OPT_IMPROVED_FIT differs from the original quadratic fit only
 //	in its constant term.
+//
+//	Actual Interpolator--OPT_IMPROVED_FIT=1'bx, OPT_INTERPOLATOR=1'b1
 //
 //	The third quadratic, OPT_INTERPOLATOR=1'b1, is actually an interpolator.
 //	By that I mean that it is designed to fit a function through the
@@ -45,17 +53,20 @@
 //
 //
 // Parameters:
+//
 //	OPT_INTERPOLATOR	If set, creates a quadratic that interpolates
 //		between sample points, so the result goes through the original
 //		sample points.  OPT_INTERPOLATOR dominates OPT_IMPROVED_FIT
 //		below, so when OPT_INTERPOLATOR is in effect, the
 //		OPT_IMPROVED_FIT and quadratic fitting code will be ignored.
+//
 //	OPT_IMPROVED_FIT  	Attempts to improve upon the traditional
 //		quadratic fit approach by filtering the constant coefficients.
 //		The result will not, however, be an interpolator in that it
 //		may not go through the original data points.  However, it will
 //		be continuous and continuous in its first *and* second
 //		derivatives.
+//
 //
 //	INW		The number of bits at the input
 //	OWID		The number of bits at the output
@@ -96,7 +107,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2017, Gisselquist Technology, LLC
+// Copyright (C) 2017-2018, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -131,6 +142,7 @@ module	quadinterp(i_clk, i_ce, i_step, i_data, o_ce, o_data);
 	parameter  [0:0]	OPT_IMPROVED_FIT = 1'b1;
 	parameter  [0:0]	OPT_INTERPOLATOR = 1'b1;
 	localparam [0:0]	DBG_LINEAR_ONLY  = 1'b0;
+	localparam		GAIN_OFFSET = (OPT_INTERPOLATOR)? 3:2;
 	// This core only supports upsampling
 	// parameter [0:0]	UPSAMPLE = 1'b1;
 	//
@@ -205,7 +217,7 @@ module	quadinterp(i_clk, i_ce, i_step, i_data, o_ce, o_data);
 					- { mem[3][(INW-1)], mem[3] };
 			// midv <= pmidv;
 			midvpsumn <= -{ pmidv[(INW+2)],pmidv }
-					+ { psumn[INW], psumn, 2'h0 };//x7 + x4
+					+ { psumn[INW], psumn, 2'h0 };//-x7+ x4
 		end
 
 		initial	av = 0;
@@ -403,6 +415,7 @@ module	quadinterp(i_clk, i_ce, i_step, i_data, o_ce, o_data);
 	assign	wp_bv = {
 			//{(CMW-(BMW+1+MP-(MP+BDEC-CDEC))){lp_bv[BMW+MP]}},
 				lp_bv[(BMW+MP):(MP+BDEC-CDEC)] };
+
 	reg	signed	[CMW:0]	r_done;
 	initial	r_done = 0;
 	always @(posedge i_clk)
@@ -410,8 +423,43 @@ module	quadinterp(i_clk, i_ce, i_step, i_data, o_ce, o_data);
 		r_done <= { wp_bv[CMW-1], wp_bv }
 				 + {{(CMW+1-CW){lp_cv[CW-1]}}, lp_cv};
 
+	generate if (CMW+1-GAIN_OFFSET > OWID)
+	begin
+
+		reg	[CMW-GAIN_OFFSET:0]	rounded;
+
+		initial rounded = 0;
+		always @(posedge i_clk)
+		if (r_ce)
+			rounded <= r_done[(CMW-GAIN_OFFSET):0]
+				+ { {(OWID){1'b0}},
+					r_done[CMW-GAIN_OFFSET-OWID],
+				{(CMW-OWID-GAIN_OFFSET-1)
+					{!r_done[CMW-GAIN_OFFSET-OWID]}} };
+
+		assign	o_data = rounded[(CMW-GAIN_OFFSET):(CMW+1-GAIN_OFFSET-OWID)];
+
+		// verilator lint_off UNUSED
+		wire	[(CMW-GAIN_OFFSET-OWID):0]	unused_rounding_bits;
+
+		assign	unused_rounding_bits
+				= rounded[(CMW-GAIN_OFFSET-OWID):0];
+		// verilator lint_on  UNUSED
+
+	end else if (CMW+1-GAIN_OFFSET == OWID)
+	begin
+
+		assign	o_data = r_done[(CMW-GAIN_OFFSET):0];
+
+	end else // if (CMW-GAIN_OFFSET < OWID)
+	begin
+
+		assign	o_data = { r_done[(CMW-GAIN_OFFSET):0],
+				{(CMW+1-GAIN_OFFSET-OWID){1'b0}} };
+
+	end endgenerate
+
 	assign	o_ce = r_ce;
-	assign	o_data = r_done[(CMW):(CMW+1-OWID)];
 
 	// Make verilator -Wall happy
 	// verilator lint_off UNUSED

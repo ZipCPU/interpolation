@@ -1,18 +1,21 @@
 ################################################################################
 ##
-## Filename: 	lininterp/Makefile
+## Filename:	Makefile
 ##
 ## Project:	Example Interpolators
 ##
-## Purpose:	To direct the making of a Verilator test program, to prove
-##		the functionality of the linear interpolator.
+## Purpose:	To direct the Verilator build of the master interpolator
+##		comparison module.
+##
+## Targets:	The default target, all, builds the only item supported by this
+##		makefile.
 ##
 ## Creator:	Dan Gisselquist, Ph.D.
 ##		Gisselquist Technology, LLC
 ##
 ################################################################################
 ##
-## Copyright (C) 2017, Gisselquist Technology, LLC
+## Copyright (C) 2018, Gisselquist Technology, LLC
 ##
 ## This program is free software (firmware): you can redistribute it and/or
 ## modify it under the terms of  the GNU General Public License as published
@@ -35,37 +38,37 @@
 ################################################################################
 ##
 ##
-all:	test
-CXX       := g++
-VDIR      := obj_dir
-VFLAGS    := -Wall --MMD --trace --Mdir $(VDIR) --cc
+all:	icomparison
+YYMMDD=`date +%Y%m%d`
+CXX   := g++
+FBDIR := .
+VDIRFB:= $(FBDIR)/obj_dir
 VERILATOR := verilator
-VERILATOR_ROOT ?= $(shell bash -c 'verilator -V|grep VERILATOR_ROOT | head -1 | sed -e "s/^.*=\s*//"')
-VROOT     := $(VERILATOR_ROOT)
-SUBMAKE   := $(MAKE) --no-print-directory -C
-VFILES    := $(VROOT)/include/verilated.cpp $(VROOT)/include/verilated_vcd_c.cpp
-CFLAGS    := -g -I$(VROOT)/include -I$(VDIR)
+VDIRS := ../../rtl/nearest-neighbor ../../rtl/lininterp ../../rtl/quadratic
+VSEARCH := $(addprefix -y ,$(VDIRS))
+VFLAGS := -MMD -Wall -trace $(VSEARCH) -cc
 
-$(VDIR)/Vlininterp.h: lininterp.v
-	$(VERILATOR) $(VFLAGS) lininterp.v
+.PHONY: icomparison
+icomparison: $(VDIRFB)/Vicomparison__ALL.a
 
-$(VDIR)/Vlininterp.cpp: $(VDIR)/Vlininterp.h
-$(VDIR)/Vlininterp.mk: $(VDIR)/Vlininterp.cpp
+$(VDIRFB)/Vicomparison__ALL.a: $(VDIRFB)/Vicomparison.h $(VDIRFB)/Vicomparison.cpp
+$(VDIRFB)/Vicomparison__ALL.a: $(VDIRFB)/Vicomparison.mk
+$(VDIRFB)/Vicomparison.h $(VDIRFB)/Vicomparison.cpp $(VDIRFB)/Vicomparison.mk: icomparison.v
 
-.PHONY: library
-library: $(VDIR)/Vlininterp.h $(VDIR)/Vlininterp.cpp $(VDIR)/Vlininterp.mk
-	$(SUBMAKE) $(VDIR) -f Vlininterp.mk
+$(VDIRFB)/V%.cpp $(VDIRFB)/V%.h $(VDIRFB)/V%.mk: $(FBDIR)/%.v
+	$(VERILATOR) $(VFLAGS) $*.v
 
-lininterp: lininterp.cpp library
-	$(CXX) $(CFLAGS) $< $(VFILES) $(VDIR)/Vlininterp__ALL.a -o $@
-
-dbgfp.32t: lininterp
-	./lininterp
-
-.PHONY: test
-test:	dbgfp.32t
+$(VDIRFB)/V%__ALL.a: $(VDIRFB)/V%.mk
+	cd $(VDIRFB); make -f V$*.mk
 
 .PHONY: clean
 clean:
-	rm -rf $(VDIR) lininterp dbgfp.32t
+	rm -rf $(VDIRFB)/*.mk
+	rm -rf $(VDIRFB)/*.cpp
+	rm -rf $(VDIRFB)/*.h
+	rm -rf $(VDIRFB)/
 
+DEPS := $(wildcard $(VDIRFB)/*.d)
+ifneq ($(DEPS),)
+include $(DEPS)
+endif

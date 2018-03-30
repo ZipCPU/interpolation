@@ -53,7 +53,7 @@ module	simpleinterp(i_clk, i_ce, i_step, i_data, o_ce, o_data);
 
 	always @(posedge i_clk)
 		if (i_ce)
-			{ o_ce, counter } <= counter + i_step;
+			{ o_ce, r_counter } <= r_counter + i_step;
 		else
 			o_ce <= 1'b0;
 
