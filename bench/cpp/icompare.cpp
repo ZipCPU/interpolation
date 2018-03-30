@@ -1,19 +1,18 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Filename: 	quadinterp.cpp
+// Filename: 	icompare.cpp
 //
 // Project:	Example Interpolators
 //
-// Purpose:	This file provides the Verilator test harness for quadinterp.v.
-//		The input is set to a sine wave, and the output values are
-//	written to a debugging file for subsequent octave examination.
+// Purpose:	This file provides the Verilator test harness for all of the
+//		interpolation functions.
 //
 // Creator:	Dan Gisselquist, Ph.D.
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2017, Gisselquist Technology, LLC
+// Copyright (C) 2018, Gisselquist Technology, LLC
 //
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
@@ -41,35 +40,31 @@
 #include <math.h>
 #include "verilated.h"
 #include "verilated_vcd_c.h"
-#include "Vquadinterp.h"
-
-const	unsigned	int	INW = 25,
-				OWID = INW,
-				MP = 25,
-				CTRBITS = 25;
-const	bool	OPT_IMPROVED_FIT = false,
-		OPT_INTERPOLATOR = false,
-		DBG_LINEAR_ONLY  = false;
+#include "Vicomparison.h"
 
 int	main(int argc, char **argv) {
-	const	char	*DBGFNAME = "dbgfp.32t";
+	const	char	*DBGFNAME = "dbgout.32t";
+	const	char	*SRCFNAME = "dbgsrc.32t";
 	Verilated::commandArgs(argc, argv);
-	Vquadinterp	tb;
+	Vicomparison	tb;
 	// Pretend (simulate) that we're running at 100MHz
 	const unsigned long	CLOCKRATE_HZ = 100000000;
 	const unsigned 		CLOCKRATE_NS = 10;
 	// We'll simulate a signal that is sampled every fourty clocks, and then
 	// try to upample it via our linear upsampling routine
-	unsigned	iclocks = 40, inow = 0;
-
-	printf("Testing: quadinterp.v\n"
-	       "--------------------\n");
+	unsigned	iclocks = 160, inow = 0;
 
 	// We'll create a binary file of 32-bit integers, dbgfp.32t, that
 	// we'll later load into Octave to find any buts.
-	FILE	*dbg_fp;
+	FILE	*dbg_fp, *src_fp;
 
 	dbg_fp = fopen(DBGFNAME,"w");
+	if (NULL == dbg_fp) {
+		fprintf(stderr, "ERR: Could not open the debugging output file, \"dbgfp.32t\"\n");
+		perror("O/S Err:");
+		exit(EXIT_FAILURE);
+	}
+	src_fp = fopen(SRCFNAME,"w");
 	if (NULL == dbg_fp) {
 		fprintf(stderr, "ERR: Could not open the debugging output file, \"dbgfp.32t\"\n");
 		perror("O/S Err:");
@@ -83,15 +78,12 @@ int	main(int argc, char **argv) {
 	// Because it makes the test results more interesting to examine
 	long	output_rate = 82000000;
 
-	assert(output_rate < CLOCKRATE_HZ);
+	assert((unsigned)output_rate < CLOCKRATE_HZ);
 	assert(input_rate  < output_rate);
 
 	// Calculate the i_step value to go into the core.
 	double	dstep;
 	dstep = (double)input_rate / (double)output_rate;
-	printf("IRAT = %12lu\n", input_rate);
-	printf("ORAT = %12lu\n",output_rate);
-	printf("RAWD = %.4f\n",dstep);
 	// Convert this less than one value into an integer an FPGA can work
 	// with.  Specifically, we're going to multiply by 2^32 here.  The
 	// multiplication may be a touch harder to recognize, simply because
@@ -108,41 +100,32 @@ int	main(int argc, char **argv) {
 	Verilated::traceEverOn(true);
 	VerilatedVcdC* tfp = new VerilatedVcdC;
 	tb.trace(tfp, 99);
-	tfp->open("quadinterp.vcd");
+	tfp->open("icompare.vcd");
 #define	TRACE_POSEDGE	tfp->dump(CLOCKRATE_NS*clocks)
 #define	TRACE_NOEDGE	tfp->dump(CLOCKRATE_NS*clocks-1)
 #define	TRACE_NEGEDGE	tfp->dump(CLOCKRATE_NS*clocks+CLOCKRATE_NS/2)
 #define	TRACE_CLOSE	tfp->close()
 
 	// IBITS is the number of bits in the input.  It *MUST* match the value
-	// within quadinterp.v.  Here, we calculate some other helper values
+	// within lininterp.v.  Here, we calculate some other helper values
 	// as well.
-	const unsigned	MAXIV = ((1<<(INW-1))-1);
+	const unsigned	IBITS=28,
+			MAXIV = ((1<<(IBITS-1))-1);
 
-
-	// OBITS is the number of bits in the linear interpolators output value.
-	// It *MUST* also match the value of the associated parameter within
-	// quadinterp.v.  As before, we'll calculate some other helper values
-	// as well.
-	const unsigned	OBITS=28;
-
-	// MPREC is the number of precision bits in the multiply
-	const unsigned	MPREC= 28;
 
 	// Clocks keeps track of how many clock ticks have passed since
 	// we started
 	unsigned clocks = 1;
 
 	// dphase is the phase increment of our test sinewave.  It's really
-	// represented by a phase step, rater than a frqeuency.  The phase
+	// represented by a phase step, rater than a frequency.  The phase
 	// step is how many radians to advance on each SYSTEM clock pulse
 	// (not input sample pulse).  This difference just makes things
 	// easier to track later.
 
-	// double	dphase = 1 / (double)iclocks / 260.0, dtheta = 0.0;
 	// double	dphase = 1 / (double)iclocks / 24.0, dtheta = 0.0;
-	double	dphase = 1 / (double)iclocks / 2.0, dtheta = 0.0;
-	printf("DPHASE = %f\n", dphase);
+	double	dphase = 1 / (double)iclocks / 2.0 * 1. / 8., dtheta = 0.0,
+		dslope;
 
 	// We're goingto run this simulation for a minimum number of clocks.
 	// Since iclocks is the number of clocks required to represent one
@@ -153,30 +136,15 @@ int	main(int argc, char **argv) {
 	unsigned	MAXTICKS = 16*32*iclocks;
 	double	dv, rv;
 
-	int	AWID, BWID, CWID, ADEC, BDEC, CDEC;
-	if (OPT_INTERPOLATOR) {
-		AWID = INW+6;
-		BWID = INW+6;
-		CWID = INW;
-		ADEC = 4;
-		BDEC = 4;
-		CDEC = 0;
-	} else if (OPT_IMPROVED_FIT) {
-		AWID = INW+3;
-		BWID = INW+1;
-		CWID = INW+4;
-		ADEC = 3;
-		BDEC = 1;
-		CDEC = 4;
-	} else {
-		AWID = INW+3;
-		BWID = INW+1;
-		CWID = INW;
-		ADEC = 3;
-		BDEC = 1;
-		CDEC = 0;
+	{
+		double	dlast;
+		dlast = 1 / (double)iclocks / 2.0 * 9./8.;
+		dslope = (dlast-dphase)/MAXTICKS;
 	}
 
+	int	vals[5];
+	for(int k=0; k<5; k++)
+		vals[k] = 0;
 
 	while(clocks < MAXTICKS) {
 		// Advance our understanding of "now"
@@ -190,6 +158,7 @@ int	main(int argc, char **argv) {
 		dtheta = dtheta + dphase;
 		if (dtheta > 1.0)
 			dtheta -= 1.0;
+		dphase += dslope;
 
 		// Do I need to produce a new input sample to be interpolated?
 		if (inow >= iclocks) {
@@ -201,9 +170,12 @@ int	main(int argc, char **argv) {
 			// Expand it to the maximum extent of our input bits
 			dv = rv * (double)MAXIV;
 			// Convert it to an input, and send it to the core.
-			tb.i_data = ((int)dv)&((1ul<<INW)-1);
+			tb.i_data = ((int)dv)&((1ul<<IBITS)-1);
 			// Tell the core there's a new value waiting for it
 			tb.i_ce = 1;
+
+			int32_t	os = (int)dv;
+			fwrite(&os, 1, sizeof(os), src_fp);
 		} else
 			// Otherwise, there's no "new data" for the core, let
 			// it keep working on the last data
@@ -229,46 +201,50 @@ int	main(int argc, char **argv) {
 
 		// If the core is producing an output, then let's examine
 		// what went into it, and what it's calculations were.
-		if (tb.o_ce) {
-			// We'll record six values
-			long	vals[6];
-
+		if (tb.o_ln_ce) {
 			// Capture, from the core, the values to send to
 			// our binary debugging file
-			vals[0] = (long)tb.i_data;
-			vals[1] = (long)tb.o_data;
-			vals[2] = (long)tb.v__DOT__ls_bv;
-			vals[3] = (long)tb.v__DOT__lp_bv;
-			vals[4] = (long)tb.v__DOT__lp_cv;
+			vals[0] = tb.o_nn_data;
 
-			// Sign extend these values first, though, by shifting
-			// them so their sign bit is in the high bit position,
-			vals[0] = (int)(vals[0] <<(64- INW));
-			vals[1] = (int)(vals[1] <<(64- OBITS));
-			vals[2] = (int)(vals[1] <<(64- OBITS));
-			vals[3] = (int)(vals[1] <<(64- OBITS));
-			vals[4] = (int)(vals[1] <<(64- OBITS));
-			// and then dropping them back down to the range they
-			// were in initially.
-			vals[0] >>= (64-INW);
-			vals[1] >>= (64-OBITS);
-			vals[2] >>= (64-OBITS);
-			vals[3] >>= (64-OBITS);
-			vals[4] >>= (64-OBITS);
-			vals[5] >>= (64-OBITS);
-			// vals[5] is already good
+			for(int k=0; k<5; k++) {
+				// Sign extend these values first, by shifting
+				// them so their sign bit is in the high bit
+				// position,
+				vals[k] = (int)(vals[k] <<(32- IBITS));
+				// and then dropping them back down to the
+				// range they were in initially.
+				vals[k] >>= (32-IBITS);
+			}
 
 			// Write these to the debugging file
-			fwrite(vals, sizeof(long), 2, dbg_fp);
+			fwrite(vals, sizeof(int), 5, dbg_fp);
 
 			// Just to prove we are doing something useful, print
 			// results out.  These tend to be incomprehensible to
 			// me in general, but I like seeing them because they
 			// convince me that something's going on.
-			/*
-			printf("%8.2f: %08x, %08x, (%08lx, %08lx)\n",
-				rv, tb.i_data, tb.o_data, vals[0], vals[1]);
-			*/
+			printf("%02x %8.2f: %08x, (%08x, %08x, %08x, %08x, %08x)\n",
+				// dphase/2./M_PI*iclocks,
+				((int)(dphase*iclocks*256.0))&0x0ff,
+				rv, tb.i_data,
+				vals[0], vals[1],
+				vals[2], vals[3], vals[4]);
+		} if (tb.o_ln_ce) {
+			// Capture, from the core, the values to send to
+			// our binary debugging file
+			vals[1] = tb.o_ln_data;
+		} if (tb.o_qf_ce) {
+			// Capture, from the core, the values to send to
+			// our binary debugging file
+			vals[2] = tb.o_qf_data;
+		} if (tb.o_qm_ce) {
+			// Capture, from the core, the values to send to
+			// our binary debugging file
+			vals[3] = tb.o_qm_data;
+		} if (tb.o_qi_ce) {
+			// Capture, from the core, the values to send to
+			// our binary debugging file
+			vals[4] = tb.o_qi_data;
 		}
 	}
 

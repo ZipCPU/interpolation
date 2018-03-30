@@ -1,11 +1,11 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Filename: 	simpleinterp.v
+// Filename: 	rounding.cpp
 //
 // Project:	Example Interpolators
 //
-// Purpose:	A *very* simple interpolator that only returns the last value,
-//		but with a newer/updated clock.
+// Purpose:	A quick test to demonstrate how rounding works.  Contains no
+//		test for success or failure.
 //
 // Creator:	Dan Gisselquist, Ph.D.
 //		Gisselquist Technology, LLC
@@ -36,28 +36,44 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
-`default_nettype	none
-//
-module	simpleinterp(i_clk, i_ce, i_step, i_data, o_ce, o_data);
-	parameter	INW   = 28,	// Input width
-			CTRBITS = 32;	// Bits in our counter
-	//
-	input	wire			i_clk;
-	input	wire			i_ce;
-	input	wire	[(INW-1):0]	i_data;
-	input	wire	[(CTRBITS-1):0]	i_step;
-	output	wire			o_ce;
-	output	wire	[(INW-1):0]	o_data;
+#include <stdio.h>
+#include <verilated.h>
+#include <verilated_vcd_c.h>
+#include "Vrounding.h"
 
-	reg	[(CTRBITS-1):0]	r_counter;
+#define	IWID	8
+#define	OWID	5
 
-	always @(posedge i_clk)
-		if (i_ce)
-			{ o_ce, r_counter } <= r_counter + i_step;
-		else
-			o_ce <= 1'b0;
+void	test(Vrounding *tb, int k) {
+	tb->i_clk = 0;
+	tb->i_data = k;
+	tb->eval();
+	tb->i_clk = 1;
+	tb->eval();
+	tb->i_clk = 1;
+	tb->eval();
 
-	always @(posedge i_clk)
-		o_data <= i_data;
+	printf("%3d %c%02x.%x: %2x %2x %2x %2x %2x %2x\n",
+		k, (k<0)?'-':' ',
+		(k>>(IWID-OWID))&((1<<(OWID))-1),
+		(k)&((1<<(IWID-OWID))-1),
+		tb->o_truncate,
+		tb->o_halfup,
+		tb->o_halfdown,
+		tb->o_tozero,
+		tb->o_fromzero,
+		tb->o_convergent);
+}
 
-endmodule
+int	main(int argc, char **argv) {
+	Verilated::commandArgs(argc, argv);
+	Vrounding	tb;
+
+	printf("Testing: rounding.v\n"
+		"-------------------\n");
+
+	for(int k=-32; k<32; k++) {
+		test(&tb, k);
+	}
+}
+

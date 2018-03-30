@@ -30,3 +30,5 @@ core
 dbgfp.64t
 quadinterp
 lininterp
+icompare
+*.32t
