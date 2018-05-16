@@ -1,11 +1,14 @@
+#!/bin/bash
 ################################################################################
 ##
-## Filename: 	quadinterp/Makefile
+## Filename:	vversion.sh
 ##
 ## Project:	Example Interpolators
 ##
-## Purpose:	To direct the making of a Verilator test program, to prove
-##		the functionality of the quadratic interpolator.
+## Purpose:	To determine whether or not the verilator prefix for internal
+##		variables is v__DOT__ or the name of the top level followed by
+##	__DOT__.  If it is the later, output -DNEW_VERILATOR, else be silent.
+##
 ##
 ## Creator:	Dan Gisselquist, Ph.D.
 ##		Gisselquist Technology, LLC
@@ -35,42 +38,27 @@
 ################################################################################
 ##
 ##
-all:	test
-CXX       := g++
-VDIR      := obj_dir
-VFLAGS    := -Wall --MMD --trace --Mdir $(VDIR) --cc
-ifneq ($(VERILATOR_ROOT),)
-VERILATOR:=$(VERILATOR_ROOT)/bin/verilator
+if [[ -x ${VERILATOR_ROOT}/bin/verilator ]];
+then
+  export VERILATOR=${VERILATOR_ROOT}/bin/verilator
+fi
+if [[ ! -x ${VERILATOR} ]];
+then
+  export VERILATOR=verilator
+fi
+if [[ ! -x `which ${VERILATOR}` ]];
+then
+  echo "Verilator not found in environment or in path"
+  exit -1
+fi
+
+VVERLINE=`${VERILATOR} -V | grep -i ^Verilator`
+VVER=`echo ${VVERLINE} | cut -d " " -f 2`
+LATER=`echo $VVER \>= 3.9 | bc`
+if [[ $LATER > 0 ]];
+then
+  echo "-DNEW_VERILATOR"
 else
-VERILATOR_ROOT ?= $(shell bash -c 'verilator -V|grep VERILATOR_ROOT | head -1 | sed -e " s/^.*=\s*//"')
-endif
-export	$(VERILATOR)
-VROOT   := $(VERILATOR_ROOT)
-VDEFS   := $(shell ./vversion.sh)
-SUBMAKE   := $(MAKE) --no-print-directory -C
-VFILES    := $(VROOT)/include/verilated.cpp $(VROOT)/include/verilated_vcd_c.cpp
-CFLAGS    := -g -I$(VROOT)/include -I$(VDIR)
-
-$(VDIR)/Vquadinterp.h: quadinterp.v
-	$(VERILATOR) $(VFLAGS) quadinterp.v
-
-$(VDIR)/Vquadinterp.cpp: $(VDIR)/Vquadinterp.h
-$(VDIR)/Vquadinterp.mk: $(VDIR)/Vquadinterp.cpp
-
-.PHONY: library
-library: $(VDIR)/Vquadinterp.h $(VDIR)/Vquadinterp.cpp $(VDIR)/Vquadinterp.mk
-	$(SUBMAKE) $(VDIR) -f Vquadinterp.mk
-
-quadinterp: quadinterp.cpp library
-	$(CXX) $(CFLAGS) $< $(VFILES) $(VDIR)/Vquadinterp__ALL.a -o $@
-
-dbgfp.32t: quadinterp
-	./quadinterp
-
-.PHONY: test
-test:	dbgfp.32t
-
-.PHONY: clean
-clean:
-	rm -rf $(VDIR) quadinterp dbgfp.32t
-
+  echo "-DOLD_VERILATOR"
+fi
+exit 0

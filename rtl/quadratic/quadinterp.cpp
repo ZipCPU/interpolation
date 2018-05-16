@@ -43,6 +43,16 @@
 #include "verilated_vcd_c.h"
 #include "Vquadinterp.h"
 
+#ifdef	OLD_VERILATOR
+#define	VVAR(A)	v__DOT_ ## A
+#else
+#define	VVAR(A)	quadinterp__DOT_ ## A
+#endif
+
+#define	ls_bv	VVAR(_ls_bv)
+#define	lp_bv	VVAR(_lp_bv)
+#define	lp_cv	VVAR(_lp_cv)
+
 const	unsigned	int	INW = 25,
 				OWID = INW,
 				MP = 25,
@@ -237,9 +247,9 @@ int	main(int argc, char **argv) {
 			// our binary debugging file
 			vals[0] = (long)tb.i_data;
 			vals[1] = (long)tb.o_data;
-			vals[2] = (long)tb.v__DOT__ls_bv;
-			vals[3] = (long)tb.v__DOT__lp_bv;
-			vals[4] = (long)tb.v__DOT__lp_cv;
+			vals[2] = (long)tb.ls_bv;
+			vals[3] = (long)tb.lp_bv;
+			vals[4] = (long)tb.lp_cv;
 
 			// Sign extend these values first, though, by shifting
 			// them so their sign bit is in the high bit position,
