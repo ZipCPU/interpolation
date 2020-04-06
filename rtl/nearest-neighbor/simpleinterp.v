@@ -46,16 +46,16 @@ module	simpleinterp(i_clk, i_ce, i_step, i_data, o_ce, o_data);
 	input	wire			i_ce;
 	input	wire	[(INW-1):0]	i_data;
 	input	wire	[(CTRBITS-1):0]	i_step;
-	output	wire			o_ce;
+	output	reg			o_ce;
 	output	wire	[(INW-1):0]	o_data;
 
 	reg	[(CTRBITS-1):0]	r_counter;
 
 	always @(posedge i_clk)
-		if (i_ce)
-			{ o_ce, r_counter } <= r_counter + i_step;
-		else
-			o_ce <= 1'b0;
+	if (i_ce)
+		{ o_ce, r_counter } <= r_counter + i_step;
+	else
+		o_ce <= 1'b0;
 
 	always @(posedge i_clk)
 		o_data <= i_data;
