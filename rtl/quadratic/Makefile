@@ -1,7 +1,7 @@
 ################################################################################
 ##
 ## Filename: 	quadinterp/Makefile
-##
+## {{{
 ## Project:	Example Interpolators
 ##
 ## Purpose:	To direct the making of a Verilator test program, to prove
@@ -11,9 +11,9 @@
 ##		Gisselquist Technology, LLC
 ##
 ################################################################################
-##
-## Copyright (C) 2017-2020, Gisselquist Technology, LLC
-##
+## }}}
+## Copyright (C) 2017-2021, Gisselquist Technology, LLC
+## {{{
 ## This program is free software (firmware): you can redistribute it and/or
 ## modify it under the terms of the GNU General Public License as published
 ## by the Free Software Foundation, either version 3 of the License, or (at
@@ -34,7 +34,7 @@
 ##
 ################################################################################
 ##
-##
+## }}}
 all:	test
 CXX       := g++
 VDIR      := obj_dir
@@ -51,26 +51,40 @@ SUBMAKE   := $(MAKE) --no-print-directory -C
 VFILES    := $(VROOT)/include/verilated.cpp $(VROOT)/include/verilated_vcd_c.cpp
 CFLAGS    := -g -I$(VROOT)/include -I$(VDIR)
 
+## Run Verilator
+## {{{
 $(VDIR)/Vquadinterp.h: quadinterp.v
 	$(VERILATOR) $(VFLAGS) quadinterp.v
+## }}}
 
+## Compiler the verilated project into a library file
+## {{{
 $(VDIR)/Vquadinterp.cpp: $(VDIR)/Vquadinterp.h
 $(VDIR)/Vquadinterp.mk: $(VDIR)/Vquadinterp.cpp
 
 .PHONY: library
 library: $(VDIR)/Vquadinterp.h $(VDIR)/Vquadinterp.cpp $(VDIR)/Vquadinterp.mk
 	$(SUBMAKE) $(VDIR) -f Vquadinterp.mk
+## }}}
 
+## Build a simulation from the library and our C++ simulation script
+## {{{
 quadinterp: quadinterp.cpp library
 	$(CXX) $(CFLAGS) $< $(VFILES) $(VDIR)/Vquadinterp__ALL.a -o $@
+## }}}
 
+## Run the test
+## {{{
 dbgfp.32t: quadinterp
 	./quadinterp
 
 .PHONY: test
 test:	dbgfp.32t
+## }}}
 
+## Clean
+## {{{
 .PHONY: clean
 clean:
 	rm -rf $(VDIR) quadinterp dbgfp.32t
-
+## }}}

@@ -2,7 +2,7 @@
 ################################################################################
 ##
 ## Filename:	vversion.sh
-##
+## {{{
 ## Project:	Example Interpolators
 ##
 ## Purpose:	To determine whether or not the verilator prefix for internal
@@ -14,9 +14,9 @@
 ##		Gisselquist Technology, LLC
 ##
 ################################################################################
-##
-## Copyright (C) 2017-2020, Gisselquist Technology, LLC
-##
+## }}}
+## Copyright (C) 2017-2021, Gisselquist Technology, LLC
+## {{{
 ## This program is free software (firmware): you can redistribute it and/or
 ## modify it under the terms of the GNU General Public License as published
 ## by the Free Software Foundation, either version 3 of the License, or (at
@@ -37,7 +37,7 @@
 ##
 ################################################################################
 ##
-##
+## }}}
 if [[ -x ${VERILATOR_ROOT}/bin/verilator ]];
 then
   export VERILATOR=${VERILATOR_ROOT}/bin/verilator

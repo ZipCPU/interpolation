@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename: 	lininterp.v
-//
+// {{{
 // Project:	Example Interpolators
 //
 // Purpose:	This file shows how to build an example linear interpolator,
@@ -43,9 +43,9 @@
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
-//
-// Copyright (C) 2017-2020, Gisselquist Technology, LLC
-//
+// }}}
+// Copyright (C) 2017-2021, Gisselquist Technology, LLC
+// {{{
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
 // by the Free Software Foundation, either version 3 of the License, or (at
@@ -60,8 +60,9 @@
 // with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
-//
+// }}}
 // License:	GPL, v3, as defined and found on www.gnu.org,
+// {{{
 //		http://www.gnu.org/licenses/gpl.html
 //
 //
@@ -74,125 +75,167 @@
 `ifdef	VERILATOR
 `define	TESTPOINTS
 `endif
-//
-module	lininterp(i_clk, i_ce, i_step, i_data, o_ce, o_data
+// }}}
+module	lininterp #(
+		// {{{
+		parameter	INW   = 28,	// Input width
+				OWID  = 28,	// Output width
+				MPREC = 28,	// Multiply precision
+				CTRBITS = 32,	// Bits in our counter
+		// This core only supports upsampling
+		// parameter [0:0]	UPSAMPLE = 1'b1;
+		localparam	FWID = MPREC+INW
+		// }}}}
+	) (
+		// {{{
+		input	wire			i_clk,
+		input	wire			i_ce,
+		input	wire	[(INW-1):0]	i_data,
+		input	wire	[(CTRBITS-1):0]	i_step,
+		output	wire			o_ce,
+		output	wire	[(OWID-1):0]	o_data
 `ifdef	TESTPOINTS
-		, o_last, o_next, o_slope, o_offset
+		, output reg	[(INW-1):0]	o_last, o_next,
+		output	reg	[(INW):0]	o_slope,
+		output	reg	[(MPREC-1):0]	o_offset
 `endif
-		);
-	parameter	INW   = 28,	// Input width
-			OWID  = 28,	// Output width
-			MPREC = 28,	// Multiply precision
-			CTRBITS = 32;	// Bits in our counter
-	// This core only supports upsampling
-	// parameter [0:0]	UPSAMPLE = 1'b1;
-	//
-	input	wire			i_clk;
-	input	wire			i_ce;
-	input	wire	[(INW-1):0]	i_data;
-	input	wire	[(CTRBITS-1):0]	i_step;
-	output	wire			o_ce;
-	output	wire	[(OWID-1):0]	o_data;
-`ifdef	TESTPOINTS
-	output	reg	[(INW-1):0]	o_last, o_next;
-	output	reg	[(INW):0]	o_slope;
-	output	reg	[(MPREC-1):0]	o_offset;
-`endif
+		// }}}
+	);
 
+	// Signal declarations
+	// {{{
+	reg				pre_ce;
+	wire	signed [(MPREC):0]	pre_offset;
 
-	reg	pre_ce;
-	initial	r_counter = 0;
-	always @(posedge i_clk)
-		pre_ce <= i_ce;
-
-	// Variable declarations for the r_ stage.
-	//
-	// This stage contains values freshly clocked in from the inputs.
-	// r_ variables are not input (i_) variables, but may have been input
-	// variables one clock ago.
 	reg				r_ce, r_ovfl;
 	reg	signed	[(INW-1):0]	r_next, r_last;
 	reg	signed	[(INW):0]	r_slope;
 	reg		[(CTRBITS-1):0]	r_counter;
 	reg	signed	[(MPREC):0]	r_offset;
 
-	// Start with ovfl true, so that we wait for the first valid input
-	initial	r_ovfl  = 1'b1;
+	reg				x_ce;
+	reg	[(INW-1):0]		x_base;
+	reg	signed [(MPREC+INW+1):0] x_offset;
+
+	reg	[(MPREC+INW-1):0]	pre_rounding;
+	reg	[(FWID-1):0]	rounded_result;
+	// }}}
+
+	always @(posedge i_clk)
+		pre_ce <= i_ce;
+	////////////////////////////////////////////////////////////////////////
+	//
+	// r_* stage.
+	// {{{
+	////////////////////////////////////////////////////////////////////////
+	//
+	//
+
+	//
+	// This stage contains values freshly clocked in from the inputs.
+	// r_ variables are not input (i_) variables, but may have been input
+	// variables one clock ago.
+
+	// r_next, r_last, r_slope
+	// {{{
 	initial	r_next  = 0;
 	initial	r_last  = 0;
 	initial	r_slope = 0;
 	always @(posedge i_clk)
-		if (i_ce)
-		begin
-			r_next <= i_data;
-			r_last <= r_next;
-			// Add a bit, to make sure we don't overflow during
-			// our subtraction
-			r_slope <= { i_data[(INW-1)], i_data }
-				- { r_next[(INW-1)], r_next };
-		end
+	if (i_ce)
+	begin
+		r_next <= i_data;
+		r_last <= r_next;
+		// Add a bit, to make sure we don't overflow during
+		// our subtraction
+		r_slope <= { i_data[(INW-1)], i_data }
+			- { r_next[(INW-1)], r_next };
+	end
+	// }}}
 
+	// r_ovfl, r_counter
+	// {{{
+	// Start with ovfl true, so that we wait for the first valid input
+	initial	r_ovfl  = 1'b1;
+	initial	r_counter = 0;
 	always @(posedge i_clk)
-		if (i_ce)
-			{ r_ovfl, r_counter } <= r_counter + i_step;
-		else if (!r_ovfl)
-			{ r_ovfl, r_counter } <= r_counter + i_step;
+	if (i_ce)
+		{ r_ovfl, r_counter } <= r_counter + i_step;
+	else if (!r_ovfl)
+		{ r_ovfl, r_counter } <= r_counter + i_step;
+	// }}}
 
-	//
+	// r_ce
+	// {{{
 	// Calculate when we want to do our next step.  In other words,
 	// when do we want to use these r_* values
 	initial	r_ce = 1'b0;
 	always @(posedge i_clk)
 		r_ce <= ((pre_ce)||(!r_ovfl));
+	// }}}
 
-	//
+	// pre_offset, r_offset
+	// {{{
 	// Do a bit select of our counter to get the offset which will be
 	// multiplied by our slope
-	wire	signed [(MPREC):0]	pre_offset;
 	assign	pre_offset = { 1'b0, r_counter[(CTRBITS-1):(CTRBITS-MPREC)] };
 	always @(posedge i_clk)
-		if (r_ce)
-			r_offset <= pre_offset;
-
-	// Variable declarations for the x_ stage
+	if (r_ce)
+		r_offset <= pre_offset;
+	// }}}
+	// }}}
+	////////////////////////////////////////////////////////////////////////
+	//
+	// x_* stage.
+	// {{{
+	////////////////////////////////////////////////////////////////////////
+	//
 	//
 	// The X stage where we multiply the incoming data.  It follows on
 	// the clock following the r_ stage, and so the inputs to this stage
 	// are the r_ variables from above.
 	//
-	reg				x_ce;
-	reg	[(INW-1):0]		x_base;
-	reg	signed [(MPREC+INW+1):0] x_offset;
+
+	// x_base, x_offset
+	// {{{
 	always @(posedge i_clk)
 	if (r_ce)
 	begin
 		x_base   <= r_last;
 		x_offset <= r_slope * r_offset;
 	end
+	// }}}
 
+	// x_ce
+	// {{{
 	always @(posedge i_clk)
 		x_ce <= r_ce;
-
+	// }}}
+	// }}}
+	////////////////////////////////////////////////////////////////////////
+	//
+	// pre-rounding stage, and output the results
+	// {{{
+	////////////////////////////////////////////////////////////////////////
+	//
+	//
 
 	//
 	// The pre_rounding stage, where we add things back together.
 	// Specifically, we'll add the result of our multiply to the last data
 	// value, to get the pre_rounding value.
 	//
-	reg	[(MPREC+INW-1):0]		pre_rounding;
 	always @(posedge i_clk)
-		if (x_ce)
-			pre_rounding <= { x_base, {(MPREC){1'b0}} }
-					+ x_offset[(MPREC+INW-1):0];
+	if (x_ce)
+		pre_rounding <= { x_base, {(MPREC){1'b0}} }
+				+ x_offset[(MPREC+INW-1):0];
 
-	localparam	FWID = MPREC+INW;
-	reg	[(FWID-1):0]	rounded_result;
 	always @(posedge i_clk)
-		if (x_ce)
-			rounded_result <= pre_rounding
-				+ { {(OWID){1'b0}},
-					pre_rounding[(FWID-OWID)],
-				{(FWID-OWID-1){!pre_rounding[(FWID-OWID)]}} };
+	if (x_ce)
+		rounded_result <= pre_rounding
+			+ { {(OWID){1'b0}},
+				pre_rounding[(FWID-OWID)],
+			{(FWID-OWID-1){!pre_rounding[(FWID-OWID)]}} };
 
 	//
 	// Here's where we output the results
@@ -209,7 +252,12 @@ module	lininterp(i_clk, i_ce, i_step, i_data, o_ce, o_data
 	// and specifically "convergent rounding."  We'll leave that for a
 	// later discussion.
 	assign	o_data = rounded_result[(FWID-1):(FWID-OWID)];
-
+	// }}}
+	////////////////////////////////////////////////////////////////////////
+	//
+	// Test points for debugging--if so defined
+	// {{{
+	////////////////////////////////////////////////////////////////////////
 `ifdef	TESTPOINTS
 	// These test points are not normally part of the linear interpolator,
 	// but they can be included here in order to help you "see" what's
@@ -226,47 +274,50 @@ module	lininterp(i_clk, i_ce, i_step, i_data, o_ce, o_data
 	reg	[(INW):0]	x_slope;
 	reg	[(MPREC-1):0]	x_sclock;
 
-	always @(posedge i_clk)
-		if (r_ce)
-		begin
-			x_last   <= r_last;
-			x_next   <= r_next;
-			x_slope  <= r_slope;
-			// Avoid name collision, with two x_offsets having
-			// different meanings.
-			x_sclock <= r_offset[(MPREC-1):0];
-		end
-
-	// One more clock for the pre-rounding step
-	//
 	reg	[(INW-1):0]	pr_last, pr_next;
 	reg	[(INW):0]	pr_slope;
 	reg	[(MPREC-1):0]	pr_offset;
 
-	always @(posedge i_clk)
-		if (x_ce)
-		begin
-			pr_last   <= x_last;
-			pr_next   <= x_next;
-			pr_slope  <= x_slope;
-			pr_offset <= x_sclock;
-		end
 
 	always @(posedge i_clk)
-		if (x_ce)
-		begin
-			o_last   <= pr_last;
-			o_next   <= pr_next;
-			o_slope  <= pr_slope;
-			o_offset <= pr_offset;
-		end
+	if (r_ce)
+	begin
+		x_last   <= r_last;
+		x_next   <= r_next;
+		x_slope  <= r_slope;
+		// Avoid name collision, with two x_offsets having
+		// different meanings.
+		x_sclock <= r_offset[(MPREC-1):0];
+	end
+
+	// One more clock for the pre-rounding step
+	//
+	always @(posedge i_clk)
+	if (x_ce)
+	begin
+		pr_last   <= x_last;
+		pr_next   <= x_next;
+		pr_slope  <= x_slope;
+		pr_offset <= x_sclock;
+	end
+
+	always @(posedge i_clk)
+	if (x_ce)
+	begin
+		o_last   <= pr_last;
+		o_next   <= pr_next;
+		o_slope  <= pr_slope;
+		o_offset <= pr_offset;
+	end
 `endif
-
+	// }}}
 
 	// Make verilator -Wall happy
+	// {{{
 	// verilator lint_off UNUSED
-	wire	[((2+FWID-OWID)-1):0]	unused;
-	assign	unused = { x_offset[(MPREC+INW+1):(MPREC+INW)],
+	wire	unused;
+	assign	unused = &{ 1'b0, x_offset[(MPREC+INW+1):(MPREC+INW)],
 			rounded_result[(FWID-OWID-1):0] };
 	// verilator lint_on  UNUSED
+	// }}}
 endmodule

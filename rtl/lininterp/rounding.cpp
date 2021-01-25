@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename: 	rounding.cpp
-//
+// {{{
 // Project:	Example Interpolators
 //
 // Purpose:	A quick test to demonstrate how rounding works.  Contains no
@@ -11,9 +11,9 @@
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
-//
-// Copyright (C) 2017-2020, Gisselquist Technology, LLC
-//
+// }}}
+// Copyright (C) 2017-2021, Gisselquist Technology, LLC
+// {{{
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
 // by the Free Software Foundation, either version 3 of the License, or (at
@@ -28,14 +28,15 @@
 // with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
-//
+// }}}
 // License:	GPL, v3, as defined and found on www.gnu.org,
+// {{{
 //		http://www.gnu.org/licenses/gpl.html
 //
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-//
+// }}}
 #include <stdio.h>
 #include <verilated.h>
 #include <verilated_vcd_c.h>
@@ -45,6 +46,7 @@
 #define	OWID	5
 
 void	test(Vrounding *tb, int k) {
+	// {{{
 	tb->i_clk = 0;
 	tb->i_data = k;
 	tb->eval();
@@ -63,6 +65,7 @@ void	test(Vrounding *tb, int k) {
 		tb->o_tozero,
 		tb->o_fromzero,
 		tb->o_convergent);
+	// }}}
 }
 
 int	main(int argc, char **argv) {

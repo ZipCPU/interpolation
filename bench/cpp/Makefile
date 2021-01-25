@@ -1,7 +1,7 @@
 ################################################################################
 ##
 ## Filename: 	Makefile
-##
+## {{{
 ## Project:	Example Interpolators
 ##
 ## Purpose:	To direct the Verilator build of the Verilator supported master
@@ -19,9 +19,9 @@
 ##		Gisselquist Technology, LLC
 ##
 ################################################################################
-##
-## Copyright (C) 2018-2020, Gisselquist Technology, LLC
-##
+## }}}
+## Copyright (C) 2018-2021, Gisselquist Technology, LLC
+## {{{
 ## This program is free software (firmware): you can redistribute it and/or
 ## modify it under the terms of  the GNU General Public License as published
 ## by the Free Software Foundation, either version 3 of the License, or (at
@@ -36,13 +36,14 @@
 ## with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 ## target there if the PDF file isn't present.)  If not, see
 ## <http://www.gnu.org/licenses/> for a copy.
-##
+## }}}
 ## License:	GPL, v3, as defined and found on www.gnu.org,
+## {{{
 ##		http://www.gnu.org/licenses/gpl.html
 ##
 ################################################################################
 ##
-##
+## }}}
 CXX	:= g++
 FLAGS	:= -Wall -Og -g
 OBJDIR  := obj-pc
@@ -77,7 +78,8 @@ icompare: $(CMPOBJS) $(VOBJDR)/Vicomparison__ALL.a
 test: icompare
 	./icompare
 
-#
+.PHONY: depends
+# {{{
 # The "depends" target, to know what files things depend upon.  The depends
 # file itself is kept in $(OBJDIR)/depends.txt
 #
@@ -89,11 +91,11 @@ define	build-depends
 	@rm $(OBJDIR)/xdepends.txt
 endef
 
-.PHONY: depends
 depends: tags
 	$(build-depends)
 
 $(OBJDIR)/depends.txt: depends
+## }}}
 
 #
 define	mk-objdir
@@ -102,14 +104,17 @@ endef
 
 #
 # The "tags" target
-#
+# {{{
 tags:	$(SOURCES) $(HEADERS)
 	@echo "Generating tags"
 	@ctags $(SOURCES) $(HEADERS)
+## }}}
 
 .PHONY: clean
+## {{{
 clean:
 	rm -f  ./icompare
 	rm -rf $(OBJDIR)/
+## }}}
 
 -include $(OBJDIR)/depends.txt

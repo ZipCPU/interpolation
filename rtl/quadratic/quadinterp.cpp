@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename: 	quadinterp.cpp
-//
+// {{{
 // Project:	Example Interpolators
 //
 // Purpose:	This file provides the Verilator test harness for quadinterp.v.
@@ -12,9 +12,9 @@
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
-//
-// Copyright (C) 2017-2020, Gisselquist Technology, LLC
-//
+// }}}
+// Copyright (C) 2017-2021, Gisselquist Technology, LLC
+// {{{
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
 // by the Free Software Foundation, either version 3 of the License, or (at
@@ -29,14 +29,15 @@
 // with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
-//
+// }}}
 // License:	GPL, v3, as defined and found on www.gnu.org,
+// {{{
 //		http://www.gnu.org/licenses/gpl.html
 //
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-//
+// }}}
 #include <stdio.h>
 #include <math.h>
 #include "verilated.h"
@@ -44,10 +45,12 @@
 #include "Vquadinterp.h"
 
 #ifdef	OLD_VERILATOR
+// {{{
 #define	VVAR(A)	v__DOT_ ## A
 #else
 #define	VVAR(A)	quadinterp__DOT_ ## A
 #endif
+// }}}
 
 #define	ls_bv	VVAR(_ls_bv)
 #define	lp_bv	VVAR(_lp_bv)

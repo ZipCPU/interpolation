@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename: 	rounding.v
-//
+// {{{
 // Project:	Example Interpolators
 //
 // Purpose:	
@@ -10,9 +10,9 @@
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
-//
-// Copyright (C) 2017-2020, Gisselquist Technology, LLC
-//
+// }}}
+// Copyright (C) 2017-2021, Gisselquist Technology, LLC
+// {{{
 // This program is free software (firmware): you can redistribute it and/or
 // modify it under the terms of  the GNU General Public License as published
 // by the Free Software Foundation, either version 3 of the License, or (at
@@ -36,7 +36,7 @@
 //
 //
 `default_nettype	none
-//
+// }}}
 module	rounding(i_clk, i_data, o_truncate,
 		o_halfup, o_halfdown, o_tozero, o_fromzero, o_convergent);
 	parameter	IWID=8, OWID=5;
