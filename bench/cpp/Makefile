@@ -1,7 +1,7 @@
 ################################################################################
 ##
 ## Filename: 	Makefile
-##
+## {{{
 ## Project:	Example Interpolators
 ##
 ## Purpose:	To direct the Verilator build of the Verilator supported master
@@ -19,11 +19,11 @@
 ##		Gisselquist Technology, LLC
 ##
 ################################################################################
-##
-## Copyright (C) 2018, Gisselquist Technology, LLC
-##
+## }}}
+## Copyright (C) 2018-2024, Gisselquist Technology, LLC
+## {{{
 ## This program is free software (firmware): you can redistribute it and/or
-## modify it under the terms of  the GNU General Public License as published
+## modify it under the terms of the GNU General Public License as published
 ## by the Free Software Foundation, either version 3 of the License, or (at
 ## your option) any later version.
 ##
@@ -36,13 +36,14 @@
 ## with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 ## target there if the PDF file isn't present.)  If not, see
 ## <http://www.gnu.org/licenses/> for a copy.
-##
+## }}}
 ## License:	GPL, v3, as defined and found on www.gnu.org,
+## {{{
 ##		http://www.gnu.org/licenses/gpl.html
 ##
 ################################################################################
 ##
-##
+## }}}
 CXX	:= g++
 FLAGS	:= -Wall -Og -g
 OBJDIR  := obj-pc
@@ -53,7 +54,7 @@ INCS	:= -I$(RTLD)/obj_dir/ -I$(VROOT)/include
 SOURCES := icompare.cpp
 VOBJDR	:= $(RTLD)/obj_dir
 SYSVDR	:= $(VROOT)/include
-VSRC	:= verilated.cpp verilated_vcd_c.cpp
+VSRC	:= verilated.cpp verilated_vcd_c.cpp verilated_threads.cpp
 VLIB	:= $(addprefix $(OBJDIR)/,$(subst .cpp,.o,$(VSRC)))
 # Sources necessary to build the icompare executable
 CMPSRCS := icompare.cpp
@@ -72,7 +73,7 @@ $(OBJDIR)/%.o: $(SYSVDR)/%.cpp
 	$(CXX) $(FLAGS) $(INCS) -c $< -o $@
 
 icompare: $(CMPOBJS) $(VOBJDR)/Vicomparison__ALL.a
-	$(CXX) $(FLAGS) $(INCS) $^ -o $@
+	$(CXX) $(FLAGS) $(INCS) $^ -lpthread -o $@
 
 test: icompare
 	./icompare

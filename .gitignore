@@ -28,7 +28,5 @@ core
 *.yslog
 *.smt2
 dbgfp.64t
-quadinterp
-lininterp
 icompare
 *.32t

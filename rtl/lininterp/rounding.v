@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename: 	rounding.v
-//
+// {{{
 // Project:	Example Interpolators
 //
 // Purpose:	
@@ -10,11 +10,11 @@
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
-//
-// Copyright (C) 2017, Gisselquist Technology, LLC
-//
+// }}}
+// Copyright (C) 2017-2024, Gisselquist Technology, LLC
+// {{{
 // This program is free software (firmware): you can redistribute it and/or
-// modify it under the terms of  the GNU General Public License as published
+// modify it under the terms of the GNU General Public License as published
 // by the Free Software Foundation, either version 3 of the License, or (at
 // your option) any later version.
 //
@@ -27,35 +27,38 @@
 // with this program.  (It's in the $(ROOT)/doc directory.  Run make with no
 // target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
-//
+// }}}
 // License:	GPL, v3, as defined and found on www.gnu.org,
+// {{{
 //		http://www.gnu.org/licenses/gpl.html
-//
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-//
 `default_nettype	none
-//
-module	rounding(i_clk, i_data, o_truncate,
-		o_halfup, o_halfdown, o_tozero, o_fromzero, o_convergent);
-	parameter	IWID=8, OWID=5;
-	input	wire			i_clk;
-	input	wire	[(IWID-1):0]	i_data;
-	output	reg	[(OWID-1):0]	o_truncate,
+// }}}
+module	rounding #(
+		parameter	IWID=8, OWID=5;
+	) (
+		// {{{
+		input	wire			i_clk,
+		input	wire	[(IWID-1):0]	i_data,
+		output	reg	[(OWID-1):0]	o_truncate,
 					o_halfup,
 					o_halfdown,
 					o_tozero,
 					o_fromzero,
-					o_convergent;
+					o_convergent
+		// }}}
+	);
 
-
+	// Local declarations
+	// {{{
 	wire	[(IWID-1):0]	w_halfup,
 				w_halfdown,
 				w_tozero,
 				w_fromzero,
 				w_convergent;
-
+	// }}}
 	
 	always @(posedge i_clk)
 		o_truncate <= i_data[(IWID-1):(IWID-OWID)];
@@ -87,10 +90,11 @@ module	rounding(i_clk, i_data, o_truncate,
 		o_convergent <= w_convergent[(IWID-1):(IWID-OWID)];
 
 	// Make verilator happy
+	// {{{
 	// verilator lint_off UNUSED
-	wire	[(15-1):0]	unused;
-	assign	unused = { w_halfup[2:0], w_halfdown[2:0], w_tozero[2:0],
+	wire	unused;
+	assign	unused = &{ 1'b0, w_halfup[2:0], w_halfdown[2:0], w_tozero[2:0],
 				w_fromzero[2:0], w_convergent[2:0] };
 	// verilator lint_on  UNUSED
-	
+	// }}}
 endmodule
