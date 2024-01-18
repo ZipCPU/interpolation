@@ -38,8 +38,10 @@
 `default_nettype	none
 // }}}
 module	simpleinterp #(
+		// {{{
 		parameter	INW   = 28,	// Input width
 				CTRBITS = 32	// Bits in our counter
+		// }}}
 	) (
 		// {{{
 		input	wire			i_clk,

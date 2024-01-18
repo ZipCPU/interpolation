@@ -47,26 +47,40 @@ SUBMAKE   := $(MAKE) --no-print-directory -C
 VFILES    := $(VROOT)/include/verilated.cpp $(VROOT)/include/verilated_vcd_c.cpp
 CFLAGS    := -g -I$(VROOT)/include -I$(VDIR)
 
+## Run Verilator
+## {{{
 $(VDIR)/Vlininterp.h: lininterp.v
 	$(VERILATOR) $(VFLAGS) lininterp.v
+## }}}
 
+## Build the result into a library
+## {{{
 $(VDIR)/Vlininterp.cpp: $(VDIR)/Vlininterp.h
 $(VDIR)/Vlininterp.mk: $(VDIR)/Vlininterp.cpp
 
 .PHONY: library
 library: $(VDIR)/Vlininterp.h $(VDIR)/Vlininterp.cpp $(VDIR)/Vlininterp.mk
 	$(SUBMAKE) $(VDIR) -f Vlininterp.mk
+## }}}
 
+## Link with the library to build our simulation
+## {{{
 lininterp: lininterp.cpp library
 	$(CXX) $(CFLAGS) $< $(VFILES) $(VDIR)/Vlininterp__ALL.a -o $@
+## }}}
 
+## The test target
+## {{{
 dbgfp.32t: lininterp
 	./lininterp
 
 .PHONY: test
 test:	dbgfp.32t
+## }}}
 
+## Clean
+## {{{
 .PHONY: clean
 clean:
 	rm -rf $(VDIR) lininterp dbgfp.32t
-
+## }}}

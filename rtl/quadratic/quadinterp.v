@@ -7,7 +7,7 @@
 // Purpose:	This file describes the implementation of one of three quadratic
 //		upsamplers: 1) A quadratic fit, 2) a better quadratic filter,
 //	3) an actual quadratic interpolator.
-//
+// {{{
 //
 //	Quadratic fit--OPT_IMPROVED_FIT=1'b0, OPT_INTERPOLATOR=1'b0
 //
@@ -50,10 +50,9 @@
 //			components for constant inputs.
 //		4. If given a linear ramp for an input, there should be no
 //			quadratic component--only a linear output.
-//
-//
+// }}}
 // Parameters:
-//
+// {{{
 //	OPT_INTERPOLATOR	If set, creates a quadratic that interpolates
 //		between sample points, so the result goes through the original
 //		sample points.  OPT_INTERPOLATOR dominates OPT_IMPROVED_FIT
@@ -73,9 +72,9 @@
 //	MP 		The number of bits from the counter used in the multiply
 //	CTRBITS		The number of bits used to keep track of the internal
 //		resampling timer.
-//
+// }}}
 // Inputs:
-//
+// {{{
 //	i_clk	Your system clock
 //
 //	i_ce	A logic strobe.  True whenever there is a new input sample
@@ -88,9 +87,9 @@
 //
 //	i_data	The input sample.  This value need only valid any time i_ce
 //		is also true.  It will be ignored on any other clock(s).
-//
+// }}}
 // Outputs:
-//
+// {{{
 //	o_ce	A logic strobe similar to i_ce, but true once for every valid
 //		output.
 //
@@ -101,7 +100,7 @@
 //
 //	o_data	The output sample, produced by linear interpolation within
 //		this core.
-//
+// }}}
 // Creator:	Dan Gisselquist, Ph.D.
 //		Gisselquist Technology, LLC
 //
@@ -191,6 +190,7 @@ module	quadinterp #(
 	reg	signed	[(MP-1):0]	qp_offset;
 
 	wire	signed	[(BMW-1):0]	lw_quad;
+
 	reg	signed	[BMW:0]		ls_bv;
 	reg	signed	[(CW-1):0]	ls_cv;
 	reg	signed	[(MP-1):0]	ls_offset;
@@ -215,6 +215,8 @@ module	quadinterp #(
 		reg	[(INW+3):0]	midvpsumn;
 
 
+		// Four sample shift register
+		// {{{
 		initial	mem[0] = 0;
 		initial	mem[1] = 0;
 		initial	mem[2] = 0;
@@ -223,8 +225,11 @@ module	quadinterp #(
 		if (i_ce)
 			{ mem[3], mem[2], mem[1], mem[0] }
 				<= { mem[2], mem[1], mem[0], i_data };
+		// }}}
 
-
+		// pmidv, psumn, pdifn, sumw, diffn, diffw, midvpsumn
+		// {{{
+		// Take an extra clock to calculate some prior values
 		initial	pmidv = 0;
 		initial	psumn = 0;
 		initial	pdifn = 0;
@@ -253,7 +258,11 @@ module	quadinterp #(
 			midvpsumn <= -{ pmidv[(INW+2)],pmidv }
 					+ { psumn[INW], psumn, 2'h0 };//-x7+ x4
 		end
+		// }}}
 
+		// av, bv, cv
+		// {{{
+		// These are our (final) quadratic coefficients
 		initial	av = 0;
 		initial	bv = 0;
 		always @(posedge i_clk)
@@ -268,18 +277,22 @@ module	quadinterp #(
 			cv <= mem[2];
 		end
 		// }}}
-	end else begin : GEN_APPROXIMATOR
+	end else begin : BASIC_QUADRATIC_FIT
 		// {{{
 		reg	signed	[(INW-1):0]	mem	[0:1];
 		reg	[INW:0]		psum, pdif;
 
-
+		// mem: 2-Sample shift register
+		// {{{
 		initial	mem[0] = 0;
 		initial	mem[1] = 0;
 		always @(posedge i_clk)
 		if (i_ce)
 			{ mem[1], mem[0] } <= { mem[0], i_data };
+		// }}}
 
+		// psum, pdif
+		// {{{
 		initial	psum = 0;
 		initial	pdif = 0;
 		always @(posedge i_clk)
@@ -288,7 +301,10 @@ module	quadinterp #(
 			psum <= { i_data[(INW-1)], i_data } + { mem[1][(INW-1)], mem[1] };
 			pdif <= { i_data[(INW-1)], i_data } - { mem[1][(INW-1)], mem[1] };
 		end
+		// }}}
 
+		// av, bv
+		// {{{
 		initial	av = 0;
 		initial	bv = 0;
 		always @(posedge i_clk)
@@ -298,9 +314,11 @@ module	quadinterp #(
 					// * 2^-ADEC
 			bv <= pdif;	// * 2^-BDEC
 		end
+		// }}}
 
 		if (OPT_IMPROVED_FIT)
 		begin : GEN_IMPROVED_FIT
+			// {{{
 			reg	[(INW+1):0]	pmid;
 			initial	pmid = 0;
 			always @(posedge i_clk)
@@ -311,10 +329,13 @@ module	quadinterp #(
 				// 0.75 * mem[2] + 0.125 * (mem[3]+mem[1])
 				cv <= { pmid, 1'b0 } + { {(2){psum[INW]}}, psum };
 			end
-		end else begin : GEN_BASIC
+			// }}}
+		end else begin : QUAD_FIT
+			// {{{
 			always @(posedge i_clk)
 			if (i_ce)
 				cv <= mem[1]; // * 1
+			// }}}
 		end
 		// }}}
 	end endgenerate
@@ -324,6 +345,9 @@ module	quadinterp #(
 	// r_*, counter: discover which half of the quadratic to evaluate
 	// {{{
 	// r_*, *old, r_ce, counter, step
+
+	// avold, bvold, cvold
+	// {{{
 	initial	avold = 0;
 	initial	bvold = 0;
 	initial	cvold = 0;
@@ -334,34 +358,47 @@ module	quadinterp #(
 		bvold <= bv;
 		cvold <= cv;
 	end
+	// }}}
 
-	initial	r_counter = 0;
+	// pre_ce
+	// {{{
 	initial	pre_ce = 0;
 	always @(posedge i_clk)
 		pre_ce <= i_ce;
+	// }}}
 
+	// r_ovfl, r_counter -- know when to produce a sample out
+	// {{{
 	// Start with ovfl true, so that we wait for the first valid input
+	initial	r_counter = 0;
 	initial	r_ovfl  = 1'b1;
 	always @(posedge i_clk)
 	if (i_ce)
 		{ r_ovfl, r_counter } <= r_counter + i_step;
 	else if (!r_ovfl)
 		{ r_ovfl, r_counter } <= r_counter + i_step;
+	// }}}
 
-	//
+	// r_ce
+	// {{{
 	// Calculate when we want to do our next step.  In other words,
 	// when do we want to use these r_* values
 	initial	r_ce = 1'b0;
 	always @(posedge i_clk)
 		r_ce <= ((pre_ce)||(!r_ovfl));
+	// }}}
 
-	//
+	// pre_offset
+	// {{{
 	// Do a bit select of our counter to get the offset which will be
 	// multiplied by our slope
 	always @(posedge i_clk)
 	if (r_ce)
 		pre_offset <= r_counter[(CTRBITS-1):(CTRBITS-MP)];
+	// }}}
 
+	// r_offset, r_av, r_bv, r_cv
+	// {{{
 	initial	r_offset = 0;
 	initial	r_av = 0;
 	initial	r_bv = 0;
@@ -381,13 +418,17 @@ module	quadinterp #(
 			r_cv <= cvold;
 		end
 	end
-
 	// }}}
 	////////////////////////////////////////////////////////////////////////
 	//
-	// qp_*, multiply the quadratic coefficient
+	// Quadratic product: av * t
 	// {{{
+	////////////////////////////////////////////////////////////////////////
+	//
+	//
 
+	// qp_quad, qp_bv, qp_cv, qp_offset
+	// {{{
 	initial	qp_quad = 0;
 	initial	qp_bv   = 0;
 	initial	qp_cv   = 0;
@@ -403,8 +444,11 @@ module	quadinterp #(
 	// }}}
 	////////////////////////////////////////////////////////////////////////
 	//
-	// ls*, Add quadratic product to linear coefficient
+	// Pre-linear step: av * t + bv
 	// {{{
+	////////////////////////////////////////////////////////////////////////
+	//
+	//
 
 	localparam	BMW = ((AW-ADEC>BW-BDEC) ? (AW-ADEC+BDEC) : BW);
 	// qp_quad (AW-ADEC).(MP+ADEC)
@@ -412,6 +456,9 @@ module	quadinterp #(
 	// lw_quad (BW-BDEC).(BDEC)
 	assign	lw_quad = { {(BMW-(AW+MP-(MP+ADEC-BDEC))){qp_quad[(AW+MP-1)]}},
 				qp_quad[(AW+MP-1):(MP+ADEC-BDEC)] };
+
+	// ls_bv, ls_cv, ls_offset
+	// {{{
 	initial	ls_bv = 0;
 	initial	ls_cv = 0;
 	initial	ls_offset = 0;
@@ -429,9 +476,13 @@ module	quadinterp #(
 	// }}}
 	////////////////////////////////////////////////////////////////////////
 	//
-	// lp*, Multiply and generate the linear product
+	// Linear product: (av * t + bv) * t
 	// {{{
+	////////////////////////////////////////////////////////////////////////
+	//
 
+	// lp_bv, lp_cv
+	// {{{
 	initial	lp_bv = 0;
 	initial	lp_cv = 0;
 	always @(posedge i_clk)
@@ -443,9 +494,12 @@ module	quadinterp #(
 	// }}}
 	////////////////////////////////////////////////////////////////////////
 	//
-	// r_done: Calculate the final result
+	// Add the final constant for the result: (av * t + bv) * t + cv
 	// {{{
+	////////////////////////////////////////////////////////////////////////
+	//
 
+	// lp_bv, lp_cv
 	localparam	CMW = ((BMW+1-BDEC>CW-CDEC) ? (BMW+1-BDEC+CDEC) : CW);
 	// lp_bv (BMW+1-BDEC).(BDEC+MP)
 	// lp_cv    (CW-CDEC).(CDEC)
@@ -461,9 +515,14 @@ module	quadinterp #(
 	// }}}
 	////////////////////////////////////////////////////////////////////////
 	//
-	// Final rounding, o_data, o_ce
+	// Round (if necessary) to produce the final result
 	// {{{
+	////////////////////////////////////////////////////////////////////////
+	//
+	//
 
+	// o_data
+	// {{{
 	generate if (CMW+1-GAIN_OFFSET > OWID)
 	begin : GEN_ROUNDING
 		// {{{
@@ -499,6 +558,7 @@ module	quadinterp #(
 				{(CMW+1-GAIN_OFFSET-OWID){1'b0}} };
 		// }}}
 	end endgenerate
+	// }}}
 
 	assign	o_ce = r_ce;
 	// }}}

@@ -120,6 +120,13 @@ module	lininterp #(
 
 	always @(posedge i_clk)
 		pre_ce <= i_ce;
+	////////////////////////////////////////////////////////////////////////
+	//
+	// r_* stage.
+	// {{{
+	////////////////////////////////////////////////////////////////////////
+	//
+	//
 
 	////////////////////////////////////////////////////////////////////////
 	//
@@ -129,6 +136,8 @@ module	lininterp #(
 	// r_ variables are not input (i_) variables, but may have been input
 	// variables one clock ago.
 
+	// r_next, r_last, r_slope
+	// {{{
 	initial	r_next  = 0;
 	initial	r_last  = 0;
 	initial	r_slope = 0;
@@ -142,7 +151,10 @@ module	lininterp #(
 		r_slope <= { i_data[(INW-1)], i_data }
 			- { r_next[(INW-1)], r_next };
 	end
+	// }}}
 
+	// r_ovfl, r_counter
+	// {{{
 	// Start with ovfl true, so that we wait for the first valid input
 	initial	r_ovfl  = 1'b1;
 	initial	r_counter = 0;
@@ -151,15 +163,19 @@ module	lininterp #(
 		{ r_ovfl, r_counter } <= r_counter + i_step;
 	else if (!r_ovfl)
 		{ r_ovfl, r_counter } <= r_counter + i_step;
+	// }}}
 
-	//
+	// r_ce
+	// {{{
 	// Calculate when we want to do our next step.  In other words,
 	// when do we want to use these r_* values
 	initial	r_ce = 1'b0;
 	always @(posedge i_clk)
 		r_ce <= ((pre_ce)||(!r_ovfl));
+	// }}}
 
-	//
+	// pre_offset, r_offset
+	// {{{
 	// Do a bit select of our counter to get the offset which will be
 	// multiplied by our slope
 	assign	pre_offset = { 1'b0, r_counter[(CTRBITS-1):(CTRBITS-MPREC)] };
@@ -168,28 +184,41 @@ module	lininterp #(
 	if (r_ce)
 		r_offset <= pre_offset;
 	// }}}
+	// }}}
 	////////////////////////////////////////////////////////////////////////
 	//
-	// x_* stage
+	// x_* stage.
 	// {{{
+	////////////////////////////////////////////////////////////////////////
+	//
 	// The X stage where we multiply the incoming data.  It follows on
 	// the clock following the r_ stage, and so the inputs to this stage
 	// are the r_ variables from above.
 	//
+
+	// x_base, x_offset
+	// {{{
 	always @(posedge i_clk)
 	if (r_ce)
 	begin
 		x_base   <= r_last;
 		x_offset <= r_slope * r_offset;
 	end
+	// }}}
 
+	// x_ce
+	// {{{
 	always @(posedge i_clk)
 		x_ce <= r_ce;
 	// }}}
 	////////////////////////////////////////////////////////////////////////
 	//
-	// Pre-rounding
+	// pre-rounding stage, and output the results
 	// {{{
+	////////////////////////////////////////////////////////////////////////
+	//
+	//
+
 	// The pre_rounding stage, where we add things back together.
 	// Specifically, we'll add the result of our multiply to the last data
 	// value, to get the pre_rounding value.
@@ -227,7 +256,11 @@ module	lininterp #(
 	// later discussion.
 	assign	o_data = rounded_result[(FWID-1):(FWID-OWID)];
 	// }}}
-
+	////////////////////////////////////////////////////////////////////////
+	//
+	// Test points for debugging--if so defined
+	// {{{
+	////////////////////////////////////////////////////////////////////////
 `ifdef	TESTPOINTS
 	// {{{
 	// These test points are not normally part of the linear interpolator,
@@ -249,6 +282,20 @@ module	lininterp #(
 	reg	[(INW):0]	pr_slope;
 	reg	[(MPREC-1):0]	pr_offset;
 
+
+	always @(posedge i_clk)
+	if (r_ce)
+	begin
+		x_last   <= r_last;
+		x_next   <= r_next;
+		x_slope  <= r_slope;
+		// Avoid name collision, with two x_offsets having
+		// different meanings.
+		x_sclock <= r_offset[(MPREC-1):0];
+	end
+
+	// One more clock for the pre-rounding step
+	//
 	always @(posedge i_clk)
 	if (r_ce)
 	begin
@@ -281,6 +328,7 @@ module	lininterp #(
 	end
 	// }}}
 `endif
+	// }}}
 
 	// Make verilator -Wall happy
 	// {{{

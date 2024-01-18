@@ -4,7 +4,11 @@
 // {{{
 // Project:	Example Interpolators
 //
-// Purpose:	
+// Purpose:	To demonstrate the results of various rounding methods
+//
+// KNOWN ISSUES:
+//	As currently implemented, these rounding methods might overflow
+//	internally even if the item in question does not.
 //
 // Creator:	Dan Gisselquist, Ph.D.
 //		Gisselquist Technology, LLC
@@ -37,7 +41,9 @@
 `default_nettype	none
 // }}}
 module	rounding #(
-		parameter	IWID=8, OWID=5;
+		// {{{
+		parameter	IWID=8, OWID=5
+		// }}}
 	) (
 		// {{{
 		input	wire			i_clk,

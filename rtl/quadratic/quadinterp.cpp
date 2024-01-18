@@ -45,6 +45,7 @@
 #include "Vquadinterp.h"
 
 #ifdef	OLD_VERILATOR
+// {{{
 #define	VVAR(A)	v__DOT_ ## A
 #elif defind(NEW_VERILATOR)
 #define	VVAR(A)	quadinterp__DOT_ ## A
@@ -53,6 +54,7 @@
 
 #define	VVAR(A)	rootp->quadinterp__DOT_ ## A
 #endif
+// }}}
 
 #define	ls_bv	VVAR(_ls_bv)
 #define	lp_bv	VVAR(_lp_bv)

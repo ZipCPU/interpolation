@@ -52,11 +52,13 @@ VFLAGS := -MMD -Wall -trace $(VSEARCH) -cc
 .DELETE_ON_ERROR:
 
 .PHONY: icomparison
+## {{{
 icomparison: $(VDIRFB)/Vicomparison__ALL.a
 
 $(VDIRFB)/Vicomparison__ALL.a: $(VDIRFB)/Vicomparison.h $(VDIRFB)/Vicomparison.cpp
 $(VDIRFB)/Vicomparison__ALL.a: $(VDIRFB)/Vicomparison.mk
 $(VDIRFB)/Vicomparison.h $(VDIRFB)/Vicomparison.cpp $(VDIRFB)/Vicomparison.mk: icomparison.v
+## }}}
 
 $(VDIRFB)/V%.cpp $(VDIRFB)/V%.h $(VDIRFB)/V%.mk: $(FBDIR)/%.v
 	$(VERILATOR) $(VFLAGS) $*.v
@@ -65,13 +67,18 @@ $(VDIRFB)/V%__ALL.a: $(VDIRFB)/V%.mk
 	cd $(VDIRFB); make -f V$*.mk
 
 .PHONY: clean
+## {{{
 clean:
 	rm -rf $(VDIRFB)/*.mk
 	rm -rf $(VDIRFB)/*.cpp
 	rm -rf $(VDIRFB)/*.h
 	rm -rf $(VDIRFB)/
+## }}}
 
+## Automatic dependency handling
+## {{{
 DEPS := $(wildcard $(VDIRFB)/*.d)
 ifneq ($(DEPS),)
 include $(DEPS)
 endif
+## }}}

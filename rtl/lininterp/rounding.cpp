@@ -45,6 +45,7 @@
 #define	OWID	5
 
 void	test(Vrounding *tb, int k) {
+	// {{{
 	tb->i_clk = 0;
 	tb->i_data = k;
 	tb->eval();
@@ -63,6 +64,7 @@ void	test(Vrounding *tb, int k) {
 		tb->o_tozero,
 		tb->o_fromzero,
 		tb->o_convergent);
+	// }}}
 }
 
 int	main(int argc, char **argv) {

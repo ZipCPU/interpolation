@@ -78,7 +78,8 @@ icompare: $(CMPOBJS) $(VOBJDR)/Vicomparison__ALL.a
 test: icompare
 	./icompare
 
-#
+.PHONY: depends
+# {{{
 # The "depends" target, to know what files things depend upon.  The depends
 # file itself is kept in $(OBJDIR)/depends.txt
 #
@@ -90,11 +91,11 @@ define	build-depends
 	@rm $(OBJDIR)/xdepends.txt
 endef
 
-.PHONY: depends
 depends: tags
 	$(build-depends)
 
 $(OBJDIR)/depends.txt: depends
+## }}}
 
 #
 define	mk-objdir
@@ -103,14 +104,17 @@ endef
 
 #
 # The "tags" target
-#
+# {{{
 tags:	$(SOURCES) $(HEADERS)
 	@echo "Generating tags"
 	@ctags $(SOURCES) $(HEADERS)
+## }}}
 
 .PHONY: clean
+## {{{
 clean:
 	rm -f  ./icompare
 	rm -rf $(OBJDIR)/
+## }}}
 
 -include $(OBJDIR)/depends.txt

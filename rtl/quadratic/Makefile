@@ -52,26 +52,40 @@ SUBMAKE   := $(MAKE) --no-print-directory -C
 VFILES    := $(VROOT)/include/verilated.cpp $(VROOT)/include/verilated_vcd_c.cpp
 CFLAGS    := -g -I$(VROOT)/include -I$(VDIR)
 
+## Run Verilator
+## {{{
 $(VDIR)/Vquadinterp.h: quadinterp.v
 	$(VERILATOR) $(VFLAGS) quadinterp.v
+## }}}
 
+## Compiler the verilated project into a library file
+## {{{
 $(VDIR)/Vquadinterp.cpp: $(VDIR)/Vquadinterp.h
 $(VDIR)/Vquadinterp.mk: $(VDIR)/Vquadinterp.cpp
 
 .PHONY: library
 library: $(VDIR)/Vquadinterp.h $(VDIR)/Vquadinterp.cpp $(VDIR)/Vquadinterp.mk
 	$(SUBMAKE) $(VDIR) -f Vquadinterp.mk
+## }}}
 
+## Build a simulation from the library and our C++ simulation script
+## {{{
 quadinterp: quadinterp.cpp library
 	$(CXX) $(CFLAGS) $< $(VFILES) $(VDIR)/Vquadinterp__ALL.a -o $@
+## }}}
 
+## Run the test
+## {{{
 dbgfp.32t: quadinterp
 	./quadinterp
 
 .PHONY: test
 test:	dbgfp.32t
+## }}}
 
+## Clean
+## {{{
 .PHONY: clean
 clean:
 	rm -rf $(VDIR) quadinterp dbgfp.32t
-
+## }}}
