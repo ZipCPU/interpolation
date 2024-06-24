@@ -277,6 +277,7 @@ module	quadinterp #(
 			cv <= mem[2];
 		end
 		// }}}
+		// }}}
 	end else begin : BASIC_QUADRATIC_FIT
 		// {{{
 		reg	signed	[(INW-1):0]	mem	[0:1];
@@ -419,6 +420,7 @@ module	quadinterp #(
 		end
 	end
 	// }}}
+	// }}}
 	////////////////////////////////////////////////////////////////////////
 	//
 	// Quadratic product: av * t
@@ -428,7 +430,6 @@ module	quadinterp #(
 	//
 
 	// qp_quad, qp_bv, qp_cv, qp_offset
-	// {{{
 	initial	qp_quad = 0;
 	initial	qp_bv   = 0;
 	initial	qp_cv   = 0;
@@ -458,7 +459,6 @@ module	quadinterp #(
 				qp_quad[(AW+MP-1):(MP+ADEC-BDEC)] };
 
 	// ls_bv, ls_cv, ls_offset
-	// {{{
 	initial	ls_bv = 0;
 	initial	ls_cv = 0;
 	initial	ls_offset = 0;
@@ -482,7 +482,6 @@ module	quadinterp #(
 	//
 
 	// lp_bv, lp_cv
-	// {{{
 	initial	lp_bv = 0;
 	initial	lp_cv = 0;
 	always @(posedge i_clk)
@@ -522,7 +521,6 @@ module	quadinterp #(
 	//
 
 	// o_data
-	// {{{
 	generate if (CMW+1-GAIN_OFFSET > OWID)
 	begin : GEN_ROUNDING
 		// {{{
@@ -558,7 +556,6 @@ module	quadinterp #(
 				{(CMW+1-GAIN_OFFSET-OWID){1'b0}} };
 		// }}}
 	end endgenerate
-	// }}}
 
 	assign	o_ce = r_ce;
 	// }}}
